@@ -63,7 +63,7 @@ namespace BackgroundRabbit
 
 
 
-                await Task.Delay(10000, stoppingToken);
+                await Task.Delay(1, stoppingToken);
             }
         }
 
