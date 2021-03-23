@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,7 +19,6 @@ namespace BackgroundRabbit
         public void HandleMessage(Message content)
         {
             _logger.LogInformation("ConsumerHandler [x] received {0}", content);
-
 
             using (var scope = _provider.CreateScope())
             {
