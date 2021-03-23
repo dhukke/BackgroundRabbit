@@ -1,7 +1,6 @@
-﻿using System.Data;
-using System.Data.SqlClient;
+using System;
 using System.Linq;
-using Dapper;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace BackgroundRabbit
@@ -9,34 +8,29 @@ namespace BackgroundRabbit
     public class ConsumerHandler
     {
         private readonly ILogger _logger;
+        private readonly IServiceProvider _provider;
 
-        public ConsumerHandler(ILoggerFactory loggerFactory)
+        public ConsumerHandler(ILoggerFactory loggerFactory, IServiceProvider provider)
         {
             _logger = loggerFactory.CreateLogger<ConsumerHandler>();
+            _provider = provider;
         }
 
         public void HandleMessage(Message content)
         {
             _logger.LogInformation("ConsumerHandler [x] received {0}", content);
 
-            var connetionString =
-                "Server=localhost,1433;User ID=sa;Password=yourStrong(!)Password;Initial Catalog=messagedb;";
-
-            using (IDbConnection db = new SqlConnection(connetionString))
+            using (var scope = _provider.CreateScope())
             {
-                var sqlInsert = "INSERT INTO Messages(Id, Content) VALUES (@id, @content)";
+                var context = scope.ServiceProvider.GetRequiredService<MessagesContext>();
 
-                db.Execute(sqlInsert, content);
+                context.Messages.Add(content);
 
-                var sqlQuery = "select id, content from Messages where id = @id";
+                context.SaveChanges();
 
-                var messageDb = db.Query<Message>(sqlQuery, new
-                    {
-                        content.Id
-                    })
-                    .FirstOrDefault();
+                var dbContent = context.Messages.FirstOrDefault(x => x.Id == content.Id);
 
-                _logger.LogInformation("{0}, {1}", messageDb.Id, messageDb.Content);
+                _logger.LogInformation("ConsumerHandler [x] read from DB: {Id}, {Content}", dbContent.Id, dbContent.Content);
             }
         }
     }
