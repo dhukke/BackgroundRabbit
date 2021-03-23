@@ -31,9 +31,9 @@ namespace BackgroundRabbit
 
             stoppingToken.ThrowIfCancellationRequested();
 
-            var consumer = new EventingBasicConsumer(_channel);
+            var consumer = new AsyncEventingBasicConsumer(_channel);
 
-            consumer.Received += (ch, ea) =>
+            consumer.Received += async (ch, ea) =>
             {
                 _logger.LogInformation("ConsumerWorker message received at: {Time}", DateTimeOffset.Now);
 
@@ -48,10 +48,12 @@ namespace BackgroundRabbit
                     consumerHandler.HandleMessage(content1);
 
                     _channel.BasicAck(ea.DeliveryTag, false);
+                    await Task.Yield();
                 }
             };
 
             _channel.BasicConsume(MessageConstants.FirstQueue, false, consumer);
+
             return Task.CompletedTask;
         }
 
@@ -62,6 +64,7 @@ namespace BackgroundRabbit
             using (var scope = _provider.CreateScope())
             {
                 var factory = scope.ServiceProvider.GetRequiredService<ConnectionFactory>();
+                factory.DispatchConsumersAsync = true;
 
                 _connection = factory.CreateConnection();
 
