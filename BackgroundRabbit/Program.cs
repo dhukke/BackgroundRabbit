@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
@@ -31,6 +32,12 @@ namespace BackgroundRabbit
                         services.AddHostedService<PublisherWorker>();
                         services.AddScoped(_  =>  new  ConnectionFactory{HostName = "localhost"});
                         services.AddScoped<ConsumerHandler>();
+                        services.AddDbContext<MessagesContext>(options =>
+                            options.UseSqlServer(
+                                "Server=localhost,1433;User ID=sa;Password=yourStrong(!)Password;Initial Catalog=messagedb;"
+                            ),
+                            ServiceLifetime.Scoped
+                        );
                     }
                 );
     }

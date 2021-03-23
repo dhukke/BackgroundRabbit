@@ -44,7 +44,7 @@ namespace BackgroundRabbit
                         var message = new Message
                         {
                             Id = Guid.NewGuid(),
-                            Text = "Hello World!"
+                            Content = "Hello World!"
                         };
 
                         var body = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message));
