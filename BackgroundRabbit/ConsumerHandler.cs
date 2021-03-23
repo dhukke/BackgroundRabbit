@@ -1,4 +1,7 @@
-﻿using System.Data.SqlClient;
+﻿using System.Data;
+using System.Data.SqlClient;
+using System.Linq;
+using Dapper;
 using Microsoft.Extensions.Logging;
 
 namespace BackgroundRabbit
@@ -16,45 +19,24 @@ namespace BackgroundRabbit
         {
             _logger.LogInformation("ConsumerHandler [x] received {0}", content);
 
-            //var connetionString = @"Server=localhost,1433;Database=messagedb;User ID=sa;Password=yourStrong(!)Password;";
-            //connetionString = @"Data Source=WIN-50GP30FGO75;Initial Catalog=Demodb;User ID=sa;Password=demol23";
+            var connetionString =
+                "Server=localhost,1433;User ID=sa;Password=yourStrong(!)Password;Initial Catalog=messagedb;";
 
-            using (var connection =
-                new SqlConnection("Server=localhost,1433;User ID=sa;Password=yourStrong(!)Password;Initial Catalog=messagedb;")
-            )
+            using (IDbConnection db = new SqlConnection(connetionString))
             {
-                connection.Open();
+                var sqlInsert = "INSERT INTO Messages(Id, Content) VALUES (@id, @content)";
 
-                var sql = "INSERT INTO Messages(Id, Content) VALUES (@id, @content)";
-                var command = new SqlCommand(sql, connection);
+                db.Execute(sqlInsert, content);
 
-                command.Parameters.Add(new SqlParameter("@id", content.Id));
-                command.Parameters.Add(new SqlParameter("@content", content.Text));
+                var sqlQuery = "select id, content from Messages where id = @id";
 
-                command.ExecuteNonQuery();
-
-                var sqlGet = "select top(1) id, content from Messages where id = @id";
-
-                var commandGet = new SqlCommand(sqlGet, connection);
-                commandGet.Parameters.AddWithValue("@id", content.Id);
-
-                var reader = commandGet.ExecuteReader();
-
-                try
-                {
-                    while (reader.Read())
+                var messageDb = db.Query<Message>(sqlQuery, new
                     {
-                        _logger.LogInformation("{0}, {1}", reader["id"], reader["content"]);
-                    }
-                }
-                finally
-                {
-                    // Always call Close when done reading.
-                    reader.Close();
-                }
+                        content.Id
+                    })
+                    .FirstOrDefault();
 
-                //fecha a conexao
-                connection.Close();
+                _logger.LogInformation("{0}, {1}", messageDb.Id, messageDb.Content);
             }
         }
     }
