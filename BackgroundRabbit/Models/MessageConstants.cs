@@ -1,4 +1,4 @@
-﻿namespace BackgroundRabbit
+﻿namespace BackgroundRabbit.Models
 {
     public static class MessageConstants
     {

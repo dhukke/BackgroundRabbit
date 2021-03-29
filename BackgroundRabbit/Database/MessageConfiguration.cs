@@ -1,7 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using BackgroundRabbit.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace BackgroundRabbit
+namespace BackgroundRabbit.Database
 {
     public class MessageConfiguration : IEntityTypeConfiguration<Message>
     {

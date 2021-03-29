@@ -1,7 +1,10 @@
+using BackgroundRabbit.Database;
+using BackgroundRabbit.Handlers;
+using BackgroundRabbit.MessageBroker;
+using BackgroundRabbit.Workers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RabbitMQ.Client;
 using Serilog;
 
 namespace BackgroundRabbit
@@ -30,7 +33,7 @@ namespace BackgroundRabbit
                     {
                         services.AddHostedService<ConsumerWorker>();
                         services.AddHostedService<PublisherWorker>();
-                        services.AddScoped(_  =>  new  ConnectionFactory{HostName = "localhost"});
+                        services.AddSingleton<IProducer, Producer>();
                         services.AddScoped<ConsumerHandler>();
                         services.AddDbContext<MessagesContext>(options =>
                             options.UseSqlServer(

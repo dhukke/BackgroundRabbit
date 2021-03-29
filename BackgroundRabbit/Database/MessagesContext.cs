@@ -1,10 +1,10 @@
+using BackgroundRabbit.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace BackgroundRabbit
+namespace BackgroundRabbit.Database
 {
     public class MessagesContext: DbContext
     {
-
         public MessagesContext(DbContextOptions<MessagesContext> options) : base(options)
         {
         }
