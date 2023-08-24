@@ -1,42 +1,39 @@
-using System;
-using System.Linq;
 using BackgroundRabbit.Database;
 using BackgroundRabbit.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace BackgroundRabbit.Handlers
+namespace BackgroundRabbit.Handlers;
+
+public class ConsumerHandler
 {
-    public class ConsumerHandler
+    private readonly ILogger _logger;
+    private readonly IServiceProvider _provider;
+
+    public ConsumerHandler(
+        ILoggerFactory loggerFactory,
+        IServiceProvider provider
+    )
     {
-        private readonly ILogger _logger;
-        private readonly IServiceProvider _provider;
+        _logger = loggerFactory.CreateLogger<ConsumerHandler>();
+        _provider = provider;
+    }
 
-        public ConsumerHandler(
-            ILoggerFactory loggerFactory,
-            IServiceProvider provider
-        )
-        {
-            _logger = loggerFactory.CreateLogger<ConsumerHandler>();
-            _provider = provider;
-        }
+    public async Task HandleMessage(Message content, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("ConsumerHandler received {content}", content);
 
-        public void HandleMessage(Message content)
-        {
-            _logger.LogInformation("ConsumerHandler [x] received {0}", content);
+        using var scope = _provider.CreateScope();
 
-            using (var scope = _provider.CreateScope())
-            {
-                var context = scope.ServiceProvider.GetRequiredService<MessagesContext>();
+        var context = scope.ServiceProvider.GetRequiredService<MessagesContext>();
 
-                context.Messages.Add(content);
+        context.Messages.Add(content);
 
-                context.SaveChanges();
+        await context.SaveChangesAsync(cancellationToken);
 
-                var dbContent = context.Messages.FirstOrDefault(x => x.Id == content.Id);
-
-                _logger.LogInformation("ConsumerHandler [x] read from DB: {Id}, {Content}", dbContent.Id, dbContent.Content);
-            }
-        }
+        _logger.LogInformation("Content saved to DB");
     }
 }

@@ -1,6 +1,5 @@
 using BackgroundRabbit.Database;
 using BackgroundRabbit.Handlers;
-using BackgroundRabbit.MessageBroker;
 using BackgroundRabbit.Workers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,8 +31,6 @@ namespace BackgroundRabbit
                 .ConfigureServices((hostContext, services) =>
                     {
                         services.AddHostedService<ConsumerWorker>();
-                        services.AddHostedService<PublisherWorker>();
-                        services.AddSingleton<IProducer, Producer>();
                         services.AddScoped<ConsumerHandler>();
                         services.AddDbContext<MessagesContext>(options =>
                             options.UseSqlServer(

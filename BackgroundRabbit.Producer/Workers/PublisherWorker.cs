@@ -1,13 +1,10 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using BackgroundRabbit.Entities;
-using BackgroundRabbit.MessageBroker;
-using BackgroundRabbit.Models;
+using BackgroundRabbit.Producer.Entities;
+using BackgroundRabbit.Producer.MessageBroker;
+using BackgroundRabbit.Producer.Models;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace BackgroundRabbit.Workers
+namespace BackgroundRabbit.Producer.Workers
 {
     public class PublisherWorker : BackgroundService
     {
@@ -39,7 +36,7 @@ namespace BackgroundRabbit.Workers
                     }
                 );
 
-                await Task.Delay(1000, stoppingToken);
+                await Task.Delay(30000, stoppingToken);
             }
         }
 
