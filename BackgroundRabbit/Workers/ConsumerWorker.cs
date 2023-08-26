@@ -41,8 +41,8 @@ public class ConsumerWorker : Consumer
         }
         catch (Exception e)
         {
-            Logger.LogError("Fail processing Message: {message}", message);
-            Logger.LogError(-1, e, "Process Fail");
+            _logger.LogError("Fail processing Message: {message}", message);
+            _logger.LogError(-1, e, "Process Fail");
 
             return false;
         }

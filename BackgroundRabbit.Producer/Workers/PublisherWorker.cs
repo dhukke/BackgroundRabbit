@@ -26,17 +26,29 @@ namespace BackgroundRabbit.Producer.Workers
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                _producer.PushMessage(
-                    MessageConstants.FirstRountingKey,
-                    new Message
+                try
+                {
+                    var message = new Message
                     {
                         Id = Guid.NewGuid(),
                         Content = $"Hello World! {DateTime.UtcNow}",
                         DateTime = DateTime.UtcNow
-                    }
-                );
+                    };
 
-                await Task.Delay(30000, stoppingToken);
+                    _producer.PushMessage(
+                        MessageConstants.FirstRountingKey,
+                        message
+                    );
+
+                    _logger.LogInformation("Publish message: {@Message}", message);
+
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.Message);
+                }
+
+                await Task.Delay(5000, stoppingToken);
             }
         }
 

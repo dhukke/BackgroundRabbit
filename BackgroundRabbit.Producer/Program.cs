@@ -26,7 +26,9 @@ public class Program
             .ConfigureServices((hostContext, services) =>
             {
                 services.AddHostedService<PublisherWorker>();
-                services.AddSingleton<IProducer, BackgroundRabbit.Producer.MessageBroker.Producer>();
+
+                // to test channel waste use ProducerChannelWaste
+                services.AddSingleton<IProducer, Producer.MessageBroker.Producer>();
             }
         );
 }

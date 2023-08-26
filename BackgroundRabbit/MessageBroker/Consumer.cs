@@ -3,9 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Polly;
-using Polly.Retry;
+using Polly.Contrib.WaitAndRetry;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 using System;
 using System.Text;
 using System.Threading;
@@ -16,12 +17,10 @@ namespace BackgroundRabbit.MessageBroker;
 public abstract class Consumer : IHostedService
 {
     private IConnection _connection;
-    private IModel _channel;
-    private bool _connectionBlocked;
-    private AsyncRetryPolicy _retryPolicy;
-    private ConnectionFactory _factory;
+    private readonly IModel _channel;
+    private readonly ConnectionFactory _factory;
 
-    protected readonly ILogger Logger;
+    protected readonly ILogger _logger;
     protected string RouteKey { get; set; }
     protected string QueueName { get; set; }
 
@@ -32,7 +31,7 @@ public abstract class Consumer : IHostedService
     {
         try
         {
-            Logger = logger;
+            _logger = logger;
 
             var connectionStringConfiguration = configuration.GetSection("MessageBroker:Host");
 
@@ -41,38 +40,37 @@ public abstract class Consumer : IHostedService
                 HostName = connectionStringConfiguration.Value
             };
 
-            _connection = _factory.CreateConnection();
+            CreateConnection();
+
             _channel = _connection.CreateModel();
-
-            _connection.ConnectionBlocked += ConnectionBlockedHandler;
-            _connection.ConnectionUnblocked += ConnectionUnblockedHandler;
-
-            // check backoff 
-            _retryPolicy = Policy.Handle<Exception>()
-            .WaitAndRetryAsync(
-                retryCount: 5,
-                sleepDurationProvider: attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)),
-                onRetry: (exception, calculatedWaitDuration, retryCount, context) =>
-                {
-                    // Log the reconnection attempt
-                });
+        }
+        catch (BrokerUnreachableException ex)
+        {
+            _logger.LogError("RabbitListener init error, BrokerUnreachableException: {Message}", ex.Message);
+            throw;
         }
         catch (Exception ex)
         {
-            Logger.LogError("RabbitListener init error, ex: {Message}", ex.Message);
+            _logger.LogError("RabbitListener init error, ex: {Message}", ex.Message);
+            throw;
         }
     }
 
-    private void ConnectionBlockedHandler(object sender, ConnectionBlockedEventArgs e)
+    private void CreateConnection()
     {
-        _connectionBlocked = true;
-        // Log the connection blocked event
-    }
+        var delay = Backoff.DecorrelatedJitterBackoffV2(
+            medianFirstRetryDelay: TimeSpan.FromMilliseconds(35),
+            retryCount: 3
+        );
 
-    private void ConnectionUnblockedHandler(object sender, EventArgs e)
-    {
-        _connectionBlocked = false;
-        // Log the connection unblocked event
+        var retryPolicy = Policy
+            .Handle<BrokerUnreachableException>()
+            .WaitAndRetry(delay);
+
+        retryPolicy.Execute(() =>
+        {
+            _connection = _factory.CreateConnection();
+        });
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -89,26 +87,13 @@ public abstract class Consumer : IHostedService
         return Task.CompletedTask;
     }
 
-    public async Task Register(CancellationToken cancellationToken)
+    public Task Register(CancellationToken cancellationToken)
     {
-        Logger.LogInformation("RabbitListener register :{RouteKey}", RouteKey);
+        _logger.LogInformation("RabbitListener register :{RouteKey}", RouteKey);
 
-        while (!cancellationToken.IsCancellationRequested)
+        if (_connection.IsOpen)
         {
-            if (!_connection.IsOpen || _connectionBlocked)
-            {
-                await _retryPolicy.ExecuteAsync(async () =>
-                {
-                    // Attempt to reconnect
-                    _connection.Dispose();
-                    _connection = _factory.CreateConnection();
-                    _channel = _connection.CreateModel();
-
-                    _connectionBlocked = false;
-                });
-            }
-
-            if (_connection.IsOpen && !_connectionBlocked)
+            try
             {
                 DeclareExchange();
 
@@ -119,22 +104,30 @@ public abstract class Consumer : IHostedService
                 _channel.BasicQos(0, 2, false);
 
                 ConfigureConsumer(cancellationToken);
-            }
 
-            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("RabbitListener register :{RouteKey}", ex.Message);
+                throw;
+            }
         }
+
+        return Task.CompletedTask;
     }
 
     private void DeclareExchange()
         => _channel.ExchangeDeclare(
             exchange: MessageConstants.FirstExchange,
-            type: ExchangeType.Topic
+            type: ExchangeType.Topic,
+            durable: true
         );
 
     private void DeclareQueue()
         => _channel.QueueDeclare(
             queue: QueueName,
-            exclusive: false
+            exclusive: false,
+            durable: true
         );
 
     private void BindExchangeToQueue()
